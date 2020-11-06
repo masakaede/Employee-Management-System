@@ -1,5 +1,6 @@
 const inquirer = require("inquirer");
 const mysql = require("mysql");
+// const userInput = require("./lib/user-input");
 
 const connection = mysql.createConnection({
     host: "localhost",
@@ -12,13 +13,13 @@ const connection = mysql.createConnection({
 connection.connect(function (err) {
     if (err) throw err;
     console.log("connected as id " + connection.threadId);
-    start();
+    mainMenu();
 });
 
-function start() {
-    inquirer
+function mainMenu() {
+    return inquirer
         .prompt({
-            name: "start",
+            name: "menu",
             type: "list",
             message: "what would you like to do?",
             choices: [
@@ -31,11 +32,20 @@ function start() {
                 "Update Employee Manager",
                 "View All Roles",
                 "Add Role",
-                "Remmove Role"
+                "Remmove Role",
+                "Exit"
             ]
         }).then(function (answer) {
-            switch (answer) {
+
+            //     console.log("37")
+            //     console.log(answer.menu)
+
+            //     if (answer.menu === "View All Employees") { viewAllEmployees() }
+            // })
+
+            switch (answer.menu) {
                 case "View All Employees":
+                    console.log("39")
                     viewAllEmployees()
                     break;
                 case "View All Employees By Department":
@@ -64,7 +74,20 @@ function start() {
                     break;
                 case "Remmove Role":
                     removeRole()
+                    break;
+                case "Exit":
+                    connection.end()
+                    break;
             }
         })
+
 }
 
+// function View All Employees
+function viewAllEmployees() {
+    connection.query("SELECT * FROM employee", function (err, results) {
+        if (err) throw err;
+        console.table(results);
+        mainMenu()
+    })
+}
