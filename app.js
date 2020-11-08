@@ -1,93 +1,97 @@
 const inquirer = require("inquirer");
-const mysql = require("mysql");
-// const userInput = require("./lib/user-input");
+const connection = require("./lib/connection");
 
-const connection = mysql.createConnection({
-    host: "localhost",
-    port: 3306,
-    user: "root",
-    password: "Masakaede19&&",
-    database: "employeeManagement_db"
-});
+userInput()
 
-connection.connect(function (err) {
-    if (err) throw err;
-    console.log("connected as id " + connection.threadId);
-    mainMenu();
-});
-
+//main menu
 function mainMenu() {
     return inquirer
-        .prompt({
-            name: "menu",
-            type: "list",
-            message: "what would you like to do?",
-            choices: [
-                "View All Employees",
-                "View All Employees By Department",
-                "View All Employees By Manager",
-                "Add Employee",
-                "Remove Employee",
-                "Update Employee Role",
-                "Update Employee Manager",
-                "View All Roles",
-                "Add Role",
-                "Remmove Role",
-                "Exit"
-            ]
-        }).then(function (answer) {
+        .prompt([
+            {
+                name: "menu",
+                type: "list",
+                message: "what would you like to do?",
+                choices: [
+                    "View All Employees",
+                    "View All Employees By Department",
 
-            //     console.log("37")
-            //     console.log(answer.menu)
-
-            //     if (answer.menu === "View All Employees") { viewAllEmployees() }
-            // })
-
-            switch (answer.menu) {
-                case "View All Employees":
-                    console.log("39")
-                    viewAllEmployees()
-                    break;
-                case "View All Employees By Department":
-                    viewAllEmployeesByDepartment()
-                    break;
-                case "View All Employees By Manager":
-                    viewAllEmployeesByManager()
-                    break;
-                case "Add Employee":
-                    addEmployee()
-                    break;
-                case "Remove Employee":
-                    removeEmployee()
-                    break;
-                case "Update Employee Role":
-                    updateEmployeeRole()
-                    break;
-                case "Update Employee Manager":
-                    updateEmployeeManager()
-                    break;
-                case "View All Roles":
-                    viewAllRoles()
-                    break;
-                case "Add Role":
-                    addRole()
-                    break;
-                case "Remmove Role":
-                    removeRole()
-                    break;
-                case "Exit":
-                    connection.end()
-                    break;
+                    "Exit"
+                ]
             }
-        })
+        ])
+};
 
+//prompt for input
+async function userInput() {
+    console.log(26)
+    const { menu } = await mainMenu();
+    switch (menu) {
+        case "View All Employees":
+            viewAllEmployees()
+            break;
+        case "View All Employees By Department":
+            viewAllEmployeesByDepartment()
+            break;
+
+        case "Exit":
+            connection.end()
+            break;
+    }
 }
 
-// function View All Employees
+// function view all employees
 function viewAllEmployees() {
     connection.query("SELECT * FROM employee", function (err, results) {
         if (err) throw err;
-        console.table(results);
-        mainMenu()
+        console.table(results)
+        userInput()
+    })
+}
+
+// function view all employees by department
+function viewAllEmployeesByDepartment() {
+    connection.query("SELECT * FROM department", function (err, results) {
+        if (err) throw err;
+        return inquirer
+            .prompt([
+                {
+                    name: "byDepartment",
+                    type: "rawlist",
+                    message: "Which department would you like to view?",
+                    choices: function () {
+                        var departments = [];
+                        for (var i = 0; i < results.length; i++) {
+                            departments.push(results[i].department_name);
+                        }
+                        return departments
+                    }
+                }
+            ]).then(function (answer) {
+                var department = answer.byDepartment;
+                var sql = "SELECT * FROM department WHERE department_name = ?";
+                connection.query(sql, department, function (err, results) {
+                    if (err) throw err;
+                    var parse = JSON.parse(JSON.stringify(results));
+                    var departmentId = parse[0].id
+                    var sql = "SELECT * FROM role WHERE department_id = ?";
+                    connection.query(sql, departmentId, function (err, results) {
+                        if (err) throw err;
+                        var parse = JSON.parse(JSON.stringify(results));
+                        var roleId = []
+
+                        for (const { id: n } of parse) {
+                            roleId.push(n)
+                        }
+
+                        var sql = `SELECT * FROM employee WHERE role_id IN (${roleId})`;
+                        connection.query(sql, function (err, results) {
+                            if (err) throw err;
+                            var parse = JSON.parse(JSON.stringify(results));
+                            console.table(parse)
+                            userInput()
+                        })
+                    })
+                })
+            })
     })
 }
