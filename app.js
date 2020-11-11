@@ -31,13 +31,32 @@ connection.query("SELECT * FROM role WHERE title = 'Sales Lead' OR title = 'Lead
         if (err) throw err;
         managerList = results;
         for (var i = 0; i < managerList.length; i++) {
-            managerNameList.push(managerList[i].first_name + " " + managerList[i].last_name)
+            managerNameList.push(managerList
+            [i].first_name + " " + managerList[i].last_name)
         };
         managerOptions = [...managerNameList];
         managerOptions.push("null")
-        return managerNameList
+        return managerNameList;
     })
 })
+
+//employee list
+var employeeList;
+var employeeNameList = [];
+function getEmployeeList() {
+    connection.query("SELECT * FROM employee", function (err, results) {
+        //console.log(45)
+        //console.log(results)
+        if (err) throw err;
+        employeeNameList = [];
+        employeeList = results;
+        for (var i = 0; i < employeeList.length; i++) {
+            employeeNameList.push(employeeList[i].first_name + " " + employeeList[i].last_name)
+        };
+        //console.log(employeeNameList)
+        return employeeNameList;
+    })
+}
 
 userInput()
 
@@ -54,6 +73,7 @@ function mainMenu() {
                     "View All Employees By Department",
                     "View All Employees By Manager",
                     "Add Employee",
+                    "Remove Employee",
                     "Exit"
                 ]
             }
@@ -62,7 +82,11 @@ function mainMenu() {
 
 //prompt for input
 async function userInput() {
-    console.log(26)
+    console.log(77)
+    await getEmployeeList();
+
+
+
     const { menu } = await mainMenu();
     switch (menu) {
         case "View All Employees":
@@ -76,6 +100,9 @@ async function userInput() {
             break;
         case "Add Employee":
             addEmployee()
+            break;
+        case "Remove Employee":
+            removeEmployee()
             break;
 
         case "Exit":
@@ -104,9 +131,19 @@ function getManagerId(manager) {
     }
 }
 
-var roleId;
+//find out the id of selected employee
+var employeeId;
+function getEmployeeId(employee) {
+    for (var i = 0; i < employeeList.length; i++) {
+        var employeeName = employeeList[i].first_name + " " + employeeList[i].last_name
+        if (employeeName === employee) {
+            return employeeId = employeeList[i].id
+        }
+    }
+}
+
+// find out the id of slected role
 async function getRoleId(answer) {
-    let roleId = null;
     return new Promise((res, rej) => {
         connection.query("SELECT * FROM role", function (err, results) {
             if (err) rej(err);
@@ -244,7 +281,7 @@ function addEmployee() {
                 choices: managerOptions
             }
         ]).then(async function (answer) {
-            //find out the id of selected role
+
             const newEmployeeRoleId = await getRoleId(answer);
 
             if (answer.managerAssign != "null") {
@@ -270,3 +307,26 @@ function addEmployee() {
 }
 
 //function delete employee
+function removeEmployee() {
+    return inquirer
+        .prompt([
+            {
+                name: "selectEmployee",
+                type: "rawlist",
+                message: "Please select an employee from the following list",
+                choices: employeeNameList
+            }
+        ]).then(function (answer) {
+
+            getEmployeeId(answer.selectEmployee)
+
+            var sql = "DELETE FROM employee WHERE id = ?";
+            connection.query(sql, employeeId, function (err, result) {
+                if (err) throw err;
+                console.log(answer.selectEmployee + " removed")
+                userInput()
+            })
+        })
+}
+
+
