@@ -79,7 +79,7 @@ function mainMenu() {
                     "Add Employee",
                     "Remove Employee",
                     "Update Employee Role",
-
+                    "Update Employee Manager",
                     "Exit"
                 ]
             }
@@ -111,6 +111,9 @@ async function userInput() {
             break;
         case "Update Employee Role":
             updateEmployeeRole()
+            break;
+        case "Update Employee Manager":
+            updateEmployeeManager()
             break;
         case "Exit":
             connection.end()
@@ -365,5 +368,39 @@ function updateEmployeeRole() {
             } catch (err) {
                 console.log("error caught")
             }
+        })
+}
+
+// function update employee manager
+function updateEmployeeManager() {
+    return inquirer
+        .prompt([
+            {
+                name: "selectEmployee",
+                type: "rawlist",
+                message: "Please select an employee from the following list",
+                choices: employeeNameList
+            },
+            {
+                name: "selectManager",
+                type: "rawlist",
+                message: "Please select a new manager from the following list",
+                choices: managerOptions
+            }
+        ]).then(async function (answer) {
+            getEmployeeId(answer.selectEmployee)
+            if (answer.selectManager != "null") {
+                getManagerId(answer.selectManager)
+            } else {
+                managerId = null
+            }
+            var sql = `UPDATE employee SET manager_id = ${managerId} WHERE id = ${employeeId}`;
+            connection.query(sql, function (err, result) {
+                if (err) throw err;
+                console.log(answer.selectEmployee + " has been assigned a new manager ")
+                userInput()
+            })
+
+
         })
 }
