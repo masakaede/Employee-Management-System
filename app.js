@@ -14,31 +14,35 @@ connection.query("SELECT title FROM role", function (err, results) {
 
 //manager list
 var managerList;
+var managerRoleId = [];
 var managerNameList = [];
 var managerOptions = [];
-connection.query("SELECT * FROM role WHERE title = 'Sales Lead' OR title = 'Lead Engineer' OR title = 'Account manager' OR title = 'Legal Team Lead'", function (err, results) {
-    if (err) throw err;
-
-    // find out the role id of each manager positions
-    var managerRoleId = [];
-    for (const { id: n } of results) {
-        managerRoleId.push(n)
-    };
-
-    //find out who are the managers
-    var sql = `SELECT * FROM employee WHERE role_id IN (${managerRoleId})`;
-    connection.query(sql, function (err, results) {
+function getManagerList() {
+    connection.query("SELECT * FROM role WHERE title = 'Sales Lead' OR title = 'Lead Engineer' OR title = 'Account manager' OR title = 'Legal Team Lead'", function (err, results) {
         if (err) throw err;
-        managerList = results;
-        for (var i = 0; i < managerList.length; i++) {
-            managerNameList.push(managerList
-            [i].first_name + " " + managerList[i].last_name)
+
+        // find out the role id of each manager positions
+        managerRoleId = [];
+        for (const { id: n } of results) {
+            managerRoleId.push(n)
         };
-        managerOptions = [...managerNameList];
-        managerOptions.push("null")
-        return managerNameList;
+
+        //find out who are the managers
+        var sql = `SELECT * FROM employee WHERE role_id IN (${managerRoleId})`;
+        connection.query(sql, function (err, results) {
+            if (err) throw err;
+            managerNameList = [];
+            managerOptions = [];
+            managerList = results;
+            for (var i = 0; i < managerList.length; i++) {
+                managerNameList.push(managerList
+                [i].first_name + " " + managerList[i].last_name)
+            };
+            managerOptions = [...managerNameList];
+            managerOptions.push("null")
+        })
     })
-})
+}
 
 //employee list
 var employeeList;
@@ -74,6 +78,8 @@ function mainMenu() {
                     "View All Employees By Manager",
                     "Add Employee",
                     "Remove Employee",
+                    "Update Employee Role",
+
                     "Exit"
                 ]
             }
@@ -82,9 +88,8 @@ function mainMenu() {
 
 //prompt for input
 async function userInput() {
-    console.log(77)
     await getEmployeeList();
-
+    await getManagerList();
 
 
     const { menu } = await mainMenu();
@@ -104,7 +109,9 @@ async function userInput() {
         case "Remove Employee":
             removeEmployee()
             break;
-
+        case "Update Employee Role":
+            updateEmployeeRole()
+            break;
         case "Exit":
             connection.end()
             break;
@@ -142,14 +149,14 @@ function getEmployeeId(employee) {
     }
 }
 
-// find out the id of slected role
-async function getRoleId(answer) {
+// find out the id of selected role
+async function getRoleId(employee) {
     return new Promise((res, rej) => {
         connection.query("SELECT * FROM role", function (err, results) {
             if (err) rej(err);
 
             for (var i = 0; i < results.length; i++) {
-                if (answer.role === results[i].title) {
+                if (employee === results[i].title) {
                     res(results[i].id)
                 }
             }
@@ -282,7 +289,7 @@ function addEmployee() {
             }
         ]).then(async function (answer) {
 
-            const newEmployeeRoleId = await getRoleId(answer);
+            const newEmployeeRoleId = await getRoleId(answer.role);
 
             if (answer.managerAssign != "null") {
                 getManagerId(answer.managerAssign)
@@ -329,4 +336,34 @@ function removeEmployee() {
         })
 }
 
-
+// function update employee role
+function updateEmployeeRole() {
+    return inquirer
+        .prompt([
+            {
+                name: "selectEmployee",
+                type: "rawlist",
+                message: "Please select an employee from the following list",
+                choices: employeeNameList
+            },
+            {
+                name: "selectRole",
+                type: "rawlist",
+                message: "Please select a new role from the following list",
+                choices: roleList
+            }
+        ]).then(async function (answer) {
+            getEmployeeId(answer.selectEmployee)
+            try {
+                const employeeNewRoleId = await getRoleId(answer.selectRole);
+                var sql = `UPDATE employee SET role_id = ${employeeNewRoleId} WHERE id = ${employeeId}`;
+                connection.query(sql, function (err, result) {
+                    if (err) throw err;
+                    console.log(answer.selectEmployee + " has been assigned to " + answer.selectRole)
+                    userInput()
+                })
+            } catch (err) {
+                console.log("error caught")
+            }
+        })
+}
