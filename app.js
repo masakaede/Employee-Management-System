@@ -15,13 +15,16 @@ function getDepartmentList() {
 }
 //role list
 var roleList = [];
-connection.query("SELECT title FROM role", function (err, results) {
-    if (err) throw err;
-    for (var i = 0; i < results.length; i++) {
-        roleList.push(results[i].title)
-    }
-    return roleList;
-});
+function getRoleList() {
+    connection.query("SELECT title FROM role", function (err, results) {
+        if (err) throw err;
+        roleList = [];
+        for (var i = 0; i < results.length; i++) {
+            roleList.push(results[i].title)
+        }
+        return roleList;
+    });
+}
 
 //manager list
 var managerList;
@@ -93,7 +96,7 @@ function mainMenu() {
                     "Update Employee Manager",
                     "View All Roles",
                     "Add Role",
-
+                    "Remove Role",
                     "Exit"
                 ]
             }
@@ -105,6 +108,7 @@ async function userInput() {
     await getEmployeeList();
     await getManagerList();
     await getDepartmentList();
+    await getRoleList();
 
     const { menu } = await mainMenu();
     switch (menu) {
@@ -135,7 +139,9 @@ async function userInput() {
         case "Add Role":
             addRole()
             break;
-
+        case "Remove Role":
+            removeRole()
+            break;
         case "Exit":
             connection.end()
             break;
@@ -303,28 +309,31 @@ function addEmployee() {
                 choices: managerOptions
             }
         ]).then(async function (answer) {
+            try {
+                const newEmployeeRoleId = await getRoleId(answer.role);
 
-            const newEmployeeRoleId = await getRoleId(answer.role);
+                if (answer.managerAssign != "null") {
+                    getManagerId(answer.managerAssign)
+                } else {
+                    managerId = null
+                }
 
-            if (answer.managerAssign != "null") {
-                getManagerId(answer.managerAssign)
-            } else {
-                managerId = null
+                connection.query(
+                    "INSERT INTO employee SET ?",
+                    {
+                        first_name: answer.firstName,
+                        last_name: answer.lastName,
+                        role_id: newEmployeeRoleId,
+                        manager_id: managerId
+                    },
+                    function (err) {
+                        if (err) throw err;
+                        console.log("New Employee Added")
+                        userInput()
+                    })
+            } catch (err) {
+                console.log("error caught")
             }
-
-            connection.query(
-                "INSERT INTO employee SET ?",
-                {
-                    first_name: answer.firstName,
-                    last_name: answer.lastName,
-                    role_id: newEmployeeRoleId,
-                    manager_id: managerId
-                },
-                function (err) {
-                    if (err) throw err;
-                    console.log("New Employee Added")
-                    userInput()
-                })
         })
 }
 
@@ -473,4 +482,28 @@ function addRole() {
         })
 }
 
+//function remove role":
+function removeRole() {
+    return inquirer
+        .prompt([
+            {
+                name: "role",
+                type: "rawlist",
+                message: "Please select a role from the following list",
+                choices: roleList
+            }
+        ]).then(async function (answer) {
+            try {
+                const removeRoleId = await getRoleId(answer.role);
+                var sql = `DELETE FROM role WHERE id = ${removeRoleId}`;
+                connection.query(sql, function (err, results) {
+                    if (err) throw err;
+                    console.log(answer.role + " removed")
+                    userInput()
+                })
+            } catch (err) {
+                console.log("error caught");
+            }
+        })
+}
 
