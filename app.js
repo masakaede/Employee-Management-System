@@ -2,7 +2,18 @@ const inquirer = require("inquirer");
 const { connect } = require("./lib/connection");
 const connection = require("./lib/connection");
 
-//available roles
+//department list
+var departmentList = [];
+function getDepartmentList() {
+    connection.query("SELECT * FROM department", function (err, results) {
+
+        for (var i = 0; i < results.length; i++) {
+            departmentList.push(results[i].department_name);
+        };
+        return departmentList;
+    });
+}
+//role list
 var roleList = [];
 connection.query("SELECT title FROM role", function (err, results) {
     if (err) throw err;
@@ -80,6 +91,9 @@ function mainMenu() {
                     "Remove Employee",
                     "Update Employee Role",
                     "Update Employee Manager",
+                    "View All Roles",
+                    "Add Role",
+
                     "Exit"
                 ]
             }
@@ -90,7 +104,7 @@ function mainMenu() {
 async function userInput() {
     await getEmployeeList();
     await getManagerList();
-
+    await getDepartmentList();
 
     const { menu } = await mainMenu();
     switch (menu) {
@@ -115,6 +129,13 @@ async function userInput() {
         case "Update Employee Manager":
             updateEmployeeManager()
             break;
+        case "View All Roles":
+            viewAllRoles()
+            break;
+        case "Add Role":
+            addRole()
+            break;
+
         case "Exit":
             connection.end()
             break;
@@ -182,54 +203,45 @@ function viewAllEmployees() {
 // function view all employees by department
 function viewAllEmployeesByDepartment() {
     //pick department
-    connection.query("SELECT * FROM department", function (err, results) {
-        if (err) throw err;
-        return inquirer
-            .prompt([
-                {
-                    name: "byDepartment",
-                    type: "rawlist",
-                    message: "Which department would you like to view?",
-                    choices: function () {
-                        var departments = [];
-                        for (var i = 0; i < results.length; i++) {
-                            departments.push(results[i].department_name);
-                        };
-                        return departments
-                    }
-                }
-            ]).then(function (answer) {
-                var department = answer.byDepartment;
+    return inquirer
+        .prompt([
+            {
+                name: "byDepartment",
+                type: "rawlist",
+                message: "Which department would you like to view?",
+                choices: departmentList
+            }
+        ]).then(function (answer) {
+            var department = answer.byDepartment;
 
-                //find the department id of selected department
-                var sql = "SELECT * FROM department WHERE department_name = ?";
-                connection.query(sql, department, function (err, results) {
+            //find the department id of selected department
+            var sql = "SELECT * FROM department WHERE department_name = ?";
+            connection.query(sql, department, function (err, results) {
+                if (err) throw err;
+                var departmentId = results[0].id
+
+                //use department id to identify roles
+                var sql = "SELECT * FROM role WHERE department_id = ?";
+                connection.query(sql, departmentId, function (err, results) {
                     if (err) throw err;
-                    var departmentId = results[0].id
 
-                    //use department id to identify roles
-                    var sql = "SELECT * FROM role WHERE department_id = ?";
-                    connection.query(sql, departmentId, function (err, results) {
+                    //use role id to indentify employees by department
+                    var roleIdList = []
+
+                    for (const { id } of results) {
+                        roleIdList.push(id)
+                    }
+                    var sql = `SELECT * FROM employee WHERE role_id IN (${roleIdList})`;
+                    connection.query(sql, function (err, results) {
                         if (err) throw err;
-
-                        //use role id to indentify employees by department
-                        var roleIdList = []
-
-                        for (const { id } of results) {
-                            roleIdList.push(id)
-                        }
-                        var sql = `SELECT * FROM employee WHERE role_id IN (${roleIdList})`;
-                        connection.query(sql, function (err, results) {
-                            if (err) throw err;
-                            console.log("----------------------------------------------------------------------")
-                            console.log("Department: " + department)
-                            console.table(results)
-                            userInput()
-                        });
+                        console.log("----------------------------------------------------------------------")
+                        console.log("Department: " + department)
+                        console.table(results)
+                        userInput()
                     });
                 });
             });
-    });
+        });
 };
 
 // function view all employees by manager
@@ -400,7 +412,65 @@ function updateEmployeeManager() {
                 console.log(answer.selectEmployee + " has been assigned a new manager ")
                 userInput()
             })
-
-
         })
 }
+
+// function view all rows
+function viewAllRoles() {
+    connection.query("SELECT * FROM role", function (err, results) {
+        if (err) throw err;
+        console.log("----------------------------------------------------------------------")
+        console.table(results)
+        userInput()
+    });
+};
+
+//fcuntion add role
+function addRole() {
+    return inquirer
+        .prompt([
+            {
+                name: "title",
+                type: "input",
+                message: "Please enter new title",
+                validate: textValidation
+            },
+            {
+                name: "salary",
+                type: "input",
+                message: "Please enter salary",
+                validate: textValidation
+            },
+            {
+                name: "department",
+                type: "rawlist",
+                message: "Please select a department",
+                choices: departmentList
+            }
+        ]).then(function (answer) {
+            console.log(answer)
+            var department = answer.department;
+
+            //find the department id of selected department
+            var sql = "SELECT * FROM department WHERE department_name = ?";
+            connection.query(sql, department, function (err, results) {
+                if (err) throw err;
+                var departmentId = results[0].id
+
+                connection.query(
+                    "INSERT INTO role SET ?",
+                    {
+                        title: answer.title,
+                        salary: answer.salary,
+                        department_id: departmentId
+                    },
+                    function (err) {
+                        if (err) throw err;
+                        console.log("New role added")
+                        userInput()
+                    })
+            })
+        })
+}
+
+
