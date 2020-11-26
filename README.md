@@ -24,7 +24,7 @@ A command-line application that manages departments, roles, and employees in a c
 
 ## Demo
 Click on the pic to see the demo video
-[![SC2 Video](./assets/Engineering-Team-Generator-Demo.png)](https://drive.google.com/file/d/1kvZ6NPpVwRGqmt6cxZEuBjw58ALvjR49/view)
+[![SC2 Video](./assets/Employee-Management_System.png)](https://drive.google.com/file/d/1kvZ6NPpVwRGqmt6cxZEuBjw58ALvjR49/view)
 
 ## License
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
