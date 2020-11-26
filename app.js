@@ -1,12 +1,12 @@
 const inquirer = require("inquirer");
-const { connect } = require("./lib/connection");
 const connection = require("./lib/connection");
 
 //department list
 var departmentList = [];
 function getDepartmentList() {
     connection.query("SELECT * FROM department", function (err, results) {
-
+        if (err) throw err;
+        departmentList = [];
         for (var i = 0; i < results.length; i++) {
             departmentList.push(results[i].department_name);
         };
@@ -97,6 +97,9 @@ function mainMenu() {
                     "View All Roles",
                     "Add Role",
                     "Remove Role",
+                    "View All Departments",
+                    "Add Department",
+                    "Remove Department",
                     "Exit"
                 ]
             }
@@ -141,6 +144,15 @@ async function userInput() {
             break;
         case "Remove Role":
             removeRole()
+            break;
+        case "View All Departments":
+            viewAllDepartments()
+            break;
+        case "Add Department":
+            addDepartment()
+            break;
+        case "Remove Department":
+            removeDepartment()
             break;
         case "Exit":
             connection.end()
@@ -207,6 +219,7 @@ function viewAllEmployees() {
 };
 
 // function view all employees by department
+var departmentId;
 function viewAllEmployeesByDepartment() {
     //pick department
     return inquirer
@@ -224,7 +237,7 @@ function viewAllEmployeesByDepartment() {
             var sql = "SELECT * FROM department WHERE department_name = ?";
             connection.query(sql, department, function (err, results) {
                 if (err) throw err;
-                var departmentId = results[0].id
+                departmentId = results[0].id
 
                 //use department id to identify roles
                 var sql = "SELECT * FROM role WHERE department_id = ?";
@@ -277,7 +290,6 @@ function viewAllEmployeesByManager() {
                 userInput()
             })
         });
-
 };
 
 //function add employee
@@ -424,7 +436,7 @@ function updateEmployeeManager() {
         })
 }
 
-// function view all rows
+// function view all roles
 function viewAllRoles() {
     connection.query("SELECT * FROM role", function (err, results) {
         if (err) throw err;
@@ -434,7 +446,7 @@ function viewAllRoles() {
     });
 };
 
-//fcuntion add role
+//function add role
 function addRole() {
     return inquirer
         .prompt([
@@ -456,33 +468,37 @@ function addRole() {
                 message: "Please select a department",
                 choices: departmentList
             }
-        ]).then(function (answer) {
+        ]).then(async function (answer) {
             console.log(answer)
             var department = answer.department;
 
-            //find the department id of selected department
-            var sql = "SELECT * FROM department WHERE department_name = ?";
-            connection.query(sql, department, function (err, results) {
-                if (err) throw err;
-                var departmentId = results[0].id
+            try {
+                // await getDepartmentId(department)
+                var sql = "SELECT * FROM department WHERE department_name = ?";
+                await connection.query(sql, department, function (err, results) {
+                    if (err) throw err;
+                    departmentId = results[0].id
 
-                connection.query(
-                    "INSERT INTO role SET ?",
-                    {
-                        title: answer.title,
-                        salary: answer.salary,
-                        department_id: departmentId
-                    },
-                    function (err) {
-                        if (err) throw err;
-                        console.log("New role added")
-                        userInput()
-                    })
-            })
-        })
-}
+                    connection.query(
+                        "INSERT INTO role SET ?",
+                        {
+                            title: answer.title,
+                            salary: answer.salary,
+                            department_id: departmentId
+                        },
+                        function (err) {
+                            if (err) throw err;
+                            console.log("New role added")
+                            userInput()
+                        })
+                })
+            } catch (err) {
+                console.log("error caught")
+            }
+        });
+};
 
-//function remove role":
+//function remove role"
 function removeRole() {
     return inquirer
         .prompt([
@@ -507,3 +523,66 @@ function removeRole() {
         })
 }
 
+// function view all departments
+function viewAllDepartments() {
+    connection.query("SELECT * FROM department", function (err, results) {
+        if (err) throw err;
+        console.log("----------------------------------------------------------------------")
+        console.table(results)
+        userInput()
+    });
+};
+
+//function add department
+function addDepartment() {
+    return inquirer
+        .prompt([
+            {
+                name: "name",
+                type: "input",
+                message: "Please enter department name",
+                validate: textValidation
+            }
+        ]).then(function (answer) {
+
+            connection.query(
+                "INSERT INTO department SET ?",
+                {
+                    department_name: answer.name
+                },
+                function (err) {
+                    if (err) throw err;
+                    console.log("New Department Added")
+                    userInput()
+                })
+        })
+}
+
+//function remove department
+function removeDepartment() {
+    return inquirer
+        .prompt([
+            {
+                name: "department",
+                type: "rawlist",
+                message: "Please select a department from the following list",
+                choices: departmentList
+            }
+        ]).then(function (answer) {
+            department = answer.department;
+
+            var sql = "SELECT * FROM department WHERE department_name = ?";
+            connection.query(sql, department, function (err, results) {
+                if (err) throw err;
+                departmentId = results[0].id
+
+                //find the department id of selected department
+                var sql = "DELETE FROM department WHERE id = ?";
+                connection.query(sql, departmentId, function (err, result) {
+                    if (err) throw err;
+                    console.log(answer.department + " removed")
+                    userInput()
+                })
+            })
+        })
+}
